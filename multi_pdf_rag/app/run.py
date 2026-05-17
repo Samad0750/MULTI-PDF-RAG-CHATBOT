@@ -2,12 +2,37 @@ import os
 import subprocess
 import sys
 import time
+from urllib.error import URLError
+from urllib.request import urlopen
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 PACKAGE_ROOT = REPO_ROOT / "multi_pdf_rag"
 BACKEND_MODULE = "multi_pdf_rag.app.main:app"
 FRONTEND_SCRIPT = PACKAGE_ROOT / "frontend" / "streamlit_app.py"
+
+
+def wait_for_backend(url: str, process: subprocess.Popen, timeout: int = 120):
+    deadline = time.time() + timeout
+    last_error = None
+
+    while time.time() < deadline:
+        if process.poll() is not None:
+            raise RuntimeError(f"Backend exited early with code {process.returncode}")
+
+        try:
+            with urlopen(url, timeout=3) as response:
+                if response.status < 500:
+                    return
+        except URLError as exc:
+            last_error = exc
+        except TimeoutError as exc:
+            last_error = exc
+
+        time.sleep(2)
+
+    raise RuntimeError(f"Backend did not become ready at {url}: {last_error}")
+
 
 if __name__ == "__main__":
     backend_host = os.getenv("BACKEND_HOST", "127.0.0.1")
@@ -34,8 +59,7 @@ if __name__ == "__main__":
         cwd=str(REPO_ROOT)
     )
 
-    # Small delay to give the backend time to start
-    time.sleep(2)
+    wait_for_backend(f"http://127.0.0.1:{backend_port}/api/health", backend)
 
     # Start Streamlit frontend using the same interpreter
     frontend = subprocess.Popen(

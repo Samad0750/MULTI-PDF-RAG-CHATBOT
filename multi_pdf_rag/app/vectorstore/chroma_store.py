@@ -11,14 +11,19 @@ from app.ingestion.embeddings import EmbeddingModel
 class ChromaVectorStore:
 
     def __init__(self):
-        self.embedding_model = EmbeddingModel.load_embeddings()
+        self.embedding_model = None
         self.db = None
+
+    def _get_embedding_model(self):
+        if self.embedding_model is None:
+            self.embedding_model = EmbeddingModel.load_embeddings()
+        return self.embedding_model
 
     def _get_db(self):
         if self.db is None:
             self.db = Chroma(
                 persist_directory=settings.CHROMA_DB_DIR,
-                embedding_function=self.embedding_model
+                embedding_function=self._get_embedding_model()
             )
         return self.db
 
@@ -137,7 +142,7 @@ class ChromaVectorStore:
         persist_path.mkdir(parents=True, exist_ok=True)
         self.db = Chroma(
             persist_directory=settings.CHROMA_DB_DIR,
-            embedding_function=self.embedding_model
+            embedding_function=self._get_embedding_model()
         )
 
     def similarity_search(self, query, k=5):
