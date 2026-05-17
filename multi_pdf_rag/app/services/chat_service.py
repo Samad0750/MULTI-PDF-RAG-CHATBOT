@@ -1,5 +1,60 @@
+import re
+
 from app.rag.retriever import RetrieverManager
 from app.rag.chains import RAGChain
+
+
+FALLBACK_TEXT = "I could not find relevant information in the uploaded documents."
+
+STOPWORDS = {
+    "about",
+    "above",
+    "all",
+    "also",
+    "and",
+    "any",
+    "are",
+    "can",
+    "compare",
+    "describe",
+    "document",
+    "documents",
+    "does",
+    "explain",
+    "find",
+    "from",
+    "give",
+    "have",
+    "how",
+    "important",
+    "insight",
+    "insights",
+    "into",
+    "key",
+    "list",
+    "pdf",
+    "pdfs",
+    "please",
+    "provide",
+    "show",
+    "summarize",
+    "summary",
+    "tell",
+    "that",
+    "the",
+    "their",
+    "there",
+    "these",
+    "this",
+    "uploaded",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "with",
+}
 
 
 class ChatService:
@@ -8,55 +63,38 @@ class ChatService:
         self.retriever = RetrieverManager()
         self.chain = RAGChain()
 
+    def _question_terms(self, question):
+        words = re.findall(r"[a-zA-Z0-9][a-zA-Z0-9_-]*", question.lower())
+        return [word for word in words if len(word) > 2 and word not in STOPWORDS]
+
+    def _has_keyword_support(self, docs, question):
+        terms = self._question_terms(question)
+        if not terms:
+            return True
+
+        combined_context = " ".join(
+            (getattr(doc, "page_content", "") or "").lower()
+            for doc in docs
+        )
+        return any(term in combined_context for term in terms)
+
     def ask_question(self, question):
 
         docs = self.retriever.get_relevant_docs(question)
 
+        if not docs or not self._has_keyword_support(docs, question):
+            return {
+                "answer": FALLBACK_TEXT,
+                "sources": []
+            }
+
         response = self.chain.generate(docs, question)
-        # If the chain returned the strict 'not found' message, attempt a
-        # lightweight keyword-based extraction from the retrieved chunks as a
-        # fallback. This helps with short definitional queries that are present
-        # verbatim in the documents but where the LLM conservatively declined.
-        fallback_text = "I could not find relevant information in the uploaded documents."
 
-        if isinstance(response, str) and response.strip() == fallback_text:
-            q_terms = [t.lower() for t in question.split() if len(t) > 2]
-            matches = []
-            for doc in docs:
-                content = (getattr(doc, "page_content", "") or "").lower()
-                if any(term in content for term in q_terms):
-                    # take a short excerpt around the first occurrence
-                    for term in q_terms:
-                        idx = content.find(term)
-                        if idx != -1:
-                            start = max(0, idx - 120)
-                            end = min(len(content), idx + 400)
-                            excerpt = doc.page_content[start:end]
-                            matches.append((excerpt.strip(), doc))
-                            break
-
-            if matches:
-                # build a concise, context-grounded answer from matches
-                answer_parts = []
-                sources = []
-                used = set()
-                for excerpt, doc in matches[:3]:
-                    key = (doc.metadata.get("source"), doc.metadata.get("page"))
-                    if key in used:
-                        continue
-                    used.add(key)
-                    answer_parts.append(excerpt.replace("\n", " ")[:800])
-                    sources.append({
-                        "source": doc.metadata.get("source"),
-                        "page": doc.metadata.get("page")
-                    })
-
-                answer = "\n\n".join(answer_parts)
-
-                return {
-                    "answer": answer,
-                    "sources": sources,
-                }
+        if isinstance(response, str) and response.strip() == FALLBACK_TEXT:
+            return {
+                "answer": FALLBACK_TEXT,
+                "sources": []
+            }
 
         # Default: return the LLM response and the doc sources
         sources = []
