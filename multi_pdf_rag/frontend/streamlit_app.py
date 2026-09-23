@@ -5,26 +5,20 @@ import hashlib
 import html
 import os
 
-# =========================
 # PAGE CONFIG
-# =========================
 st.set_page_config(
     page_title="Enterprise Multi PDF AI",
     page_icon="🤖",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-# =========================
 # BACKEND URL
-# =========================
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/api")
 REQUEST_TIMEOUT = 120
 
 
 def safe_text(value):
     return html.escape(str(value))
-
 
 def format_source(source):
     if isinstance(source, dict):
@@ -35,9 +29,8 @@ def format_source(source):
         return source_name
     return str(source)
 
-# =========================
+
 # CUSTOM CSS
-# =========================
 st.markdown("""
 <style>
 
@@ -167,9 +160,9 @@ section[data-testid="stSidebar"] {
 </style>
 """, unsafe_allow_html=True)
 
-# =========================
+
 # SESSION STATE
-# =========================
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
@@ -179,9 +172,8 @@ if "uploaded_files" not in st.session_state:
 if "uploaded_file_hashes" not in st.session_state:
     st.session_state.uploaded_file_hashes = set()
 
-# =========================
 # SIDEBAR
-# =========================
+
 with st.sidebar:
 
     st.markdown("## 🤖 Enterprise AI")
@@ -244,9 +236,8 @@ with st.sidebar:
     else:
         st.info("No conversations yet")
 
-# =========================
+
 # MAIN HEADER
-# =========================
 st.markdown(
     '<div class="main-title">Enterprise Multi PDF Q/A</div>',
     unsafe_allow_html=True
@@ -257,9 +248,8 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# =========================
+
 # METRICS
-# =========================
 col1, col2, col3, col4 = st.columns(4)
 
 metrics = [
@@ -283,9 +273,8 @@ for col, metric in zip([col1, col2, col3, col4], metrics):
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# =========================
+
 # FILE UPLOAD SECTION
-# =========================
 st.markdown("## 📂 Upload Documents")
 
 uploaded_files = st.file_uploader(
@@ -357,9 +346,8 @@ if uploaded_files:
 
         status_text.success("🎉 New documents are ready!")
 
-# =========================
+
 # CHAT SECTION
-# =========================
 st.markdown("<br>", unsafe_allow_html=True)
 st.markdown("## 💬 AI Assistant")
 
@@ -376,16 +364,15 @@ with colA:
 with colB:
     clear = st.button("🗑️ Clear")
 
-# =========================
+
 # CLEAR CHAT
-# =========================
 if clear:
     st.session_state.chat_history = []
     st.rerun()
 
-# =========================
+
 # GENERATE ANSWER
-# =========================
+
 if generate:
 
     if not question:
@@ -465,9 +452,9 @@ if generate:
             except Exception as e:
                 st.error(f"Connection Error: {e}")
 
-# =========================
+
 # RECENT CONVERSATIONS
-# =========================
+
 if st.session_state.chat_history:
 
     st.markdown("<br>", unsafe_allow_html=True)
@@ -486,9 +473,9 @@ if st.session_state.chat_history:
                 unsafe_allow_html=True
             )
 
-# =========================
+
 # FOOTER
-# =========================
+
 st.markdown("<br><br>", unsafe_allow_html=True)
 
 st.markdown(
